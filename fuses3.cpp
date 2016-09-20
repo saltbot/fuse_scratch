@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdarg.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -33,8 +34,17 @@
 #include <sys/xattr.h>
 #endif
 
+static FILE* log_fp;
+void log_msg(const char* msg, ...){
+    va_list ap;
+    va_start(ap, msg);
+    vfprintf(log_fp, msg, ap);
+    fflush(log_fp);
+}
+    
 static int xmp_getattr(const char *path, struct stat *stbuf)
 {
+    log_msg("getattr %s\n", path);
 	int res;
 
 	res = lstat(path, stbuf);
@@ -46,6 +56,7 @@ static int xmp_getattr(const char *path, struct stat *stbuf)
 
 static int xmp_access(const char *path, int mask)
 {
+    log_msg("access\n");
 	int res;
 
 	res = access(path, mask);
@@ -57,6 +68,7 @@ static int xmp_access(const char *path, int mask)
 
 static int xmp_readlink(const char *path, char *buf, size_t size)
 {
+    log_msg("readlink\n");
 	int res;
 
 	res = readlink(path, buf, size - 1);
@@ -71,6 +83,8 @@ static int xmp_readlink(const char *path, char *buf, size_t size)
 static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 		       off_t offset, struct fuse_file_info *fi)
 {
+    log_msg("readdir %s\n", path);
+    
 	DIR *dp;
 	struct dirent *de;
 
@@ -96,6 +110,7 @@ static int xmp_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
 static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 {
+    log_msg("mknod\n");
 	int res;
 
 	/* On Linux this could just be 'mknod(path, mode, rdev)' but this
@@ -116,6 +131,7 @@ static int xmp_mknod(const char *path, mode_t mode, dev_t rdev)
 
 static int xmp_mkdir(const char *path, mode_t mode)
 {
+    log_msg("mkdir\n");
 	int res;
 
 	res = mkdir(path, mode);
@@ -127,6 +143,7 @@ static int xmp_mkdir(const char *path, mode_t mode)
 
 static int xmp_unlink(const char *path)
 {
+    log_msg("unlink\n");
 	int res;
 
 	res = unlink(path);
@@ -138,6 +155,7 @@ static int xmp_unlink(const char *path)
 
 static int xmp_rmdir(const char *path)
 {
+    log_msg("rmdir\n");
 	int res;
 
 	res = rmdir(path);
@@ -149,6 +167,7 @@ static int xmp_rmdir(const char *path)
 
 static int xmp_symlink(const char *from, const char *to)
 {
+    log_msg("symlink\n");
 	int res;
 
 	res = symlink(from, to);
@@ -160,6 +179,7 @@ static int xmp_symlink(const char *from, const char *to)
 
 static int xmp_rename(const char *from, const char *to)
 {
+    log_msg("rename\n");
 	int res;
 
 	res = rename(from, to);
@@ -171,6 +191,7 @@ static int xmp_rename(const char *from, const char *to)
 
 static int xmp_link(const char *from, const char *to)
 {
+    log_msg("link\n");
 	int res;
 
 	res = link(from, to);
@@ -229,6 +250,8 @@ static int xmp_utimens(const char *path, const struct timespec ts[2])
 
 static int xmp_open(const char *path, struct fuse_file_info *fi)
 {
+    log_msg("open\n");
+    
 	int res;
 
 	res = open(path, fi->flags);
@@ -242,6 +265,7 @@ static int xmp_open(const char *path, struct fuse_file_info *fi)
 static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 		    struct fuse_file_info *fi)
 {
+    log_msg("read\n");
 	int fd;
 	int res;
 
@@ -261,6 +285,7 @@ static int xmp_read(const char *path, char *buf, size_t size, off_t offset,
 static int xmp_write(const char *path, const char *buf, size_t size,
 		     off_t offset, struct fuse_file_info *fi)
 {
+    log_msg("write\n");
 	int fd;
 	int res;
 
@@ -279,6 +304,7 @@ static int xmp_write(const char *path, const char *buf, size_t size,
 
 static int xmp_statfs(const char *path, struct statvfs *stbuf)
 {
+    log_msg("statfs\n");
 	int res;
 
 	res = statvfs(path, stbuf);
@@ -408,5 +434,11 @@ int main(int argc, char **argv)
 	xmp_oper.removexattr	= xmp_removexattr;
 #endif
 
+
+    log_fp = fopen("fuse_log.txt", "w");
+    if (log_fp == NULL){
+        printf("Could not open log.\n");
+    }
+    log_msg("Starting up...\n");
 	return fuse_main(argc, argv, &xmp_oper, NULL);
 }
